@@ -1,0 +1,25 @@
+# Render.com Blueprint for Live Captions.
+# Push this repo to GitHub and connect it to Render — this file is auto-detected.
+#
+# After first deploy, Render auto-injects RENDER_EXTERNAL_URL into the env,
+# so the host page's QR codes start encoding the public URL with no manual
+# configuration. If you later attach a custom domain, set PUBLIC_URL to that
+# URL (e.g. https://livecaptions.yourdomain.com) so QR codes use it instead.
+
+services:
+  - type: web
+    name: live-captions
+    runtime: node
+    plan: free          # 750 hrs/mo. Spins down after 15 min idle (~30s cold start).
+    region: oregon      # closest free region to Idaho — change if needed
+    autoDeploy: true
+    buildCommand: npm install
+    startCommand: npm start
+    healthCheckPath: /healthz
+    envVars:
+      - key: NODE_VERSION
+        value: 20
+      - key: PUBLIC_URL
+        sync: false     # leave unset to use RENDER_EXTERNAL_URL automatically
+      - key: MYMEMORY_EMAIL
+        sync: false     # optional: raises translation quota from 5K to 50K chars/day

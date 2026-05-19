@@ -1,0 +1,21 @@
+{
+  "name": "live-captions",
+  "version": "0.1.0",
+  "description": "Live meeting captions in English/Spanish for large meetings, with auto-generated post-meeting notes.",
+  "private": true,
+  "type": "commonjs",
+  "main": "server/index.js",
+  "scripts": {
+    "start": "node server/index.js",
+    "dev": "node --watch server/index.js"
+  },
+  "dependencies": {
+    "express": "^4.19.2",
+    "nanoid": "^3.3.7",
+    "qrcode": "^1.5.3",
+    "socket.io": "^4.7.5"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}

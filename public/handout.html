@@ -1,0 +1,119 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>How to Join — Live Captions</title>
+    <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+    <link rel="stylesheet" href="/styles.css" />
+  </head>
+  <body class="handout">
+    <header class="site-header no-print">
+      <a class="brand" href="/" aria-label="Live Captions home">
+        <svg class="brand-icon" viewBox="0 0 32 32" aria-hidden="true">
+          <circle cx="16" cy="16" r="4.5" fill="currentColor"/>
+          <circle cx="16" cy="16" r="9" fill="none" stroke="currentColor" stroke-width="1.6" opacity="0.65"/>
+          <circle cx="16" cy="16" r="13.2" fill="none" stroke="currentColor" stroke-width="1.2" opacity="0.35"/>
+        </svg>
+        <span class="brand-name">Live Captions</span>
+      </a>
+      <div class="row">
+        <button id="print-btn" class="primary small">Print this page</button>
+        <a id="back-host" class="ghost small" href="/">Back</a>
+      </div>
+    </header>
+
+    <main class="handout-main">
+      <article class="handout-sheet" id="sheet">
+        <header class="handout-header">
+          <div class="handout-brand">
+            <svg width="28" height="28" viewBox="0 0 32 32" aria-hidden="true">
+              <circle cx="16" cy="16" r="4.5" fill="#0a0c11"/>
+              <circle cx="16" cy="16" r="9" fill="none" stroke="#0a0c11" stroke-width="1.6" opacity="0.65"/>
+              <circle cx="16" cy="16" r="13.2" fill="none" stroke="#0a0c11" stroke-width="1.2" opacity="0.35"/>
+            </svg>
+            <span>Live Captions</span>
+          </div>
+          <h1 class="handout-title">Read along on your phone.</h1>
+          <p class="handout-sub">Closed captions and shareable notes from today's meeting.</p>
+        </header>
+
+        <section class="handout-grid">
+          <div class="handout-qr">
+            <img id="qr-img" alt="QR code to join" />
+            <p class="handout-roomcode" id="room-code">…</p>
+            <p class="handout-roomlabel">Room code</p>
+          </div>
+
+          <ol class="handout-steps">
+            <li>
+              <span class="step-num">1</span>
+              <div>
+                <strong>Connect to the building's Wi-Fi.</strong>
+                <span class="step-help">Ask an usher if you don't know the name.</span>
+              </div>
+            </li>
+            <li>
+              <span class="step-num">2</span>
+              <div>
+                <strong>Point your camera at the QR code →</strong>
+                <span class="step-help">Or open this address in your browser:</span>
+                <code id="join-url" class="step-url">…</code>
+              </div>
+            </li>
+            <li>
+              <span class="step-num">3</span>
+              <div>
+                <strong>Tap your language: English or Español.</strong>
+                <span class="step-help">Captions appear live as the speaker talks.</span>
+              </div>
+            </li>
+            <li>
+              <span class="step-num">4</span>
+              <div>
+                <strong>When the meeting ends, the notes link appears.</strong>
+                <span class="step-help">Tap it to view, copy, or download the full transcript and a summary.</span>
+              </div>
+            </li>
+          </ol>
+        </section>
+
+        <footer class="handout-foot">
+          <p><strong>No app to install.</strong> No account. Free for everyone.</p>
+          <p class="handout-disclaimer">Captions are generated automatically and may contain occasional errors. The full transcript is your best record after the meeting.</p>
+        </footer>
+      </article>
+
+      <p id="err" class="err no-print" hidden></p>
+    </main>
+
+    <script>
+      (async function main() {
+        const roomId = decodeURIComponent(window.location.pathname.split('/').pop() || '');
+        const err = document.getElementById('err');
+        const codeEl = document.getElementById('room-code');
+        const urlEl = document.getElementById('join-url');
+        const qrImg = document.getElementById('qr-img');
+
+        try {
+          const [roomRes, qrRes] = await Promise.all([
+            fetch(`/api/rooms/${encodeURIComponent(roomId)}`),
+            fetch(`/api/rooms/${encodeURIComponent(roomId)}/qr`),
+          ]);
+          if (!roomRes.ok || !qrRes.ok) throw new Error('Could not load the room.');
+          const room = await roomRes.json();
+          const qr = await qrRes.json();
+          codeEl.textContent = room.code;
+          urlEl.textContent = qr.joinUrl.replace(/^https?:\/\//, '');
+          qrImg.src = qr.dataUrl;
+          document.title = `Join ${room.code} — Live Captions`;
+        } catch (e) {
+          err.hidden = false;
+          err.textContent = e.message;
+        }
+
+        document.getElementById('print-btn').addEventListener('click', () => window.print());
+      })();
+    </script>
+  </body>
+</html>

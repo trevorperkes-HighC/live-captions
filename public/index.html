@@ -1,0 +1,87 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <meta name="theme-color" content="#0a0c11" />
+    <title>Live Captions</title>
+    <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+    <link rel="stylesheet" href="/styles.css" />
+  </head>
+  <body class="landing">
+    <header class="site-header">
+      <a class="brand" href="/" aria-label="Live Captions home">
+        <svg class="brand-icon" viewBox="0 0 32 32" aria-hidden="true">
+          <circle cx="16" cy="16" r="4.5" fill="currentColor"/>
+          <circle cx="16" cy="16" r="9" fill="none" stroke="currentColor" stroke-width="1.6" opacity="0.65"/>
+          <circle cx="16" cy="16" r="13.2" fill="none" stroke="currentColor" stroke-width="1.2" opacity="0.35"/>
+        </svg>
+        <span class="brand-name">Live Captions</span>
+      </a>
+    </header>
+
+    <main>
+      <section class="hero">
+        <span class="eyebrow">Live captions • Shareable notes</span>
+        <h1>Don't miss a word.</h1>
+        <p class="lead">Open it on your phone. Read along live when you want, or let it run in the background. Every word becomes a transcript and summary you take home when the meeting ends.</p>
+      </section>
+
+      <section class="card">
+        <div class="cta">
+          <button id="host-btn" class="primary big">Start a meeting</button>
+          <p class="cta-help">Or join a meeting someone else is hosting:</p>
+          <form id="join-form" class="join">
+            <label for="room-code">Room code</label>
+            <div class="row">
+              <input id="room-code" name="room-code" placeholder="MEET-XXXX" autocomplete="off" autocapitalize="characters" />
+              <button type="submit" class="secondary">Join</button>
+            </div>
+          </form>
+        </div>
+      </section>
+
+      <div class="feature-row" aria-hidden="true">
+        <div class="feature"><strong>Read along, live</strong>Every word the speaker says, on your phone the moment they say it.</div>
+        <div class="feature"><strong>Notes you take home</strong>Full transcript and a summary, ready when the meeting ends.</div>
+        <div class="feature"><strong>English or Spanish</strong>Each attendee picks their caption language.</div>
+      </div>
+
+      <p id="host-err" class="err" hidden></p>
+    </main>
+
+    <script>
+      const hostBtn = document.getElementById('host-btn');
+      const hostErr = document.getElementById('host-err');
+
+      hostBtn.addEventListener('click', async () => {
+        hostErr.hidden = true;
+        hostBtn.disabled = true;
+        hostBtn.textContent = 'Starting…';
+        try {
+          const res = await fetch('/api/rooms', { method: 'POST' });
+          if (!res.ok) throw new Error(`HTTP ${res.status}`);
+          const room = await res.json();
+          // Cache the host token so the host page can prove host-ness later
+          // (used to view the stats report on the notes page).
+          if (room.hostToken) {
+            try { localStorage.setItem(`hostToken:${room.id}`, room.hostToken); } catch (_) {}
+          }
+          window.location.href = `/host/${encodeURIComponent(room.id)}`;
+        } catch (err) {
+          hostErr.textContent = `Could not start a meeting: ${err.message}`;
+          hostErr.hidden = false;
+          hostBtn.disabled = false;
+          hostBtn.textContent = 'Start a meeting';
+        }
+      });
+
+      document.getElementById('join-form').addEventListener('submit', (e) => {
+        e.preventDefault();
+        const code = document.getElementById('room-code').value.trim().toUpperCase();
+        if (!code) return;
+        window.location.href = `/join/${encodeURIComponent(code)}`;
+      });
+    </script>
+  </body>
+</html>
