@@ -776,6 +776,13 @@ body.pitch {
     break-inside: avoid;
   }
 
+  /* Same treatment for the standalone cost section — short enough that
+     it should always stay on one page. */
+  .pitch-cost {
+    page-break-inside: avoid;
+    break-inside: avoid;
+  }
+
   /* Keep the entire Ask intact so it doesn't get split across pages. */
   .pitch-ask {
     page-break-inside: avoid;
