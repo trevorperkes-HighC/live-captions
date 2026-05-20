@@ -115,6 +115,19 @@
     statusEl.textContent = 'Ready when you are.';
   });
   socket.on('error_msg', (msg) => {
+    if (msg.error === 'room_not_found') {
+      // The free-tier server restarted (redeploy or idle timeout) and lost the
+      // room. Stop recognition, surface a clear message, point them home to
+      // start fresh.
+      wantListening = false;
+      if (recognition) { try { recognition.onend = null; recognition.stop(); } catch (_) {} }
+      startBtn.disabled = true;
+      endBtn.disabled = true;
+      setConn('disconnected', 'Meeting unavailable');
+      statusEl.textContent = '';
+      showError('The server lost this meeting (the free hosting can drop meetings when restarted). Go to the home page and tap "Start a meeting" to create a fresh one.');
+      return;
+    }
     showError(`Server: ${msg.error}`);
   });
   socket.on('disconnect', () => {

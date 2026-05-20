@@ -226,8 +226,78 @@ ${(data.transcripts && data.transcripts[displayLang]) || '(no transcript availab
   });
 
   socket.on('error_msg', (msg) => {
+    if (msg.error === 'room_not_found') {
+      handleRoomGone();
+      return;
+    }
     showError(`Server: ${msg.error}`);
   });
+
+  // Friendly handling when the server has no record of this room. Happens when
+  // the free-tier instance restarts (idle timeout or a redeploy). If the phone
+  // has captions buffered in memory, offer a "save what you've seen" button so
+  // the attendee can still walk away with the text.
+  function handleRoomGone() {
+    setStatus('disconnected', 'Meeting unavailable');
+    interimEl.textContent = '';
+    captionsEl.classList.add('captions-ended');
+    const hasBuffer = finals.length > 0;
+    captionsEl.innerHTML = `
+      <div class="ended-card">
+        <svg width="44" height="44" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <circle cx="12" cy="12" r="10"/>
+          <line x1="12" y1="8" x2="12" y2="12"/>
+          <line x1="12" y1="16" x2="12.01" y2="16"/>
+        </svg>
+        <h2 class="ended-title">Meeting no longer active</h2>
+        <p class="ended-sub">${hasBuffer
+          ? 'This meeting dropped before it ended properly. You can still save the captions your phone received below.'
+          : 'The host needs to start a new meeting and share a fresh QR code.'}</p>
+        <div class="ended-actions">
+          ${hasBuffer ? `<button id="rescue-save" class="primary big ended-cta">Save captions so far</button>` : ''}
+          <a class="ghost ended-link" href="/">Back to home</a>
+        </div>
+      </div>
+    `;
+    if (hasBuffer) {
+      document.getElementById('rescue-save').addEventListener('click', saveRescueBuffer);
+    }
+  }
+
+  function saveRescueBuffer() {
+    const lines = finals
+      .map((c) => (c[displayLang] || c.original || '').trim())
+      .filter(Boolean);
+    if (lines.length === 0) return;
+    const stamp = new Date().toISOString().slice(0, 16).replace(/[T:]/g, '-');
+    const filename = `${roomId}-${stamp}-${displayLang}-partial.txt`;
+    const body =
+`Live Captions — partial capture
+Room: ${roomId}
+Captured: ${new Date().toLocaleString()}
+Note: meeting dropped before ending; this is what this phone received.
+
+================================================================
+CAPTIONS RECEIVED
+================================================================
+
+${lines.join('\n\n')}
+`;
+    const blob = new Blob([body], { type: 'text/plain;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+    const btn = document.getElementById('rescue-save');
+    if (btn) {
+      btn.textContent = 'Saved ✓';
+      setTimeout(() => { btn.textContent = 'Save again'; }, 1500);
+    }
+  }
 
   socket.on('meeting_ended', async ({ notesUrl }) => {
     setStatus('disconnected', 'Meeting ended');
