@@ -6,9 +6,15 @@ Hands-off handoff document. If you're picking this up in a new chat session, **r
 
 ## Project in one paragraph
 
-**Live Captions** is a web app that puts live closed captions on every attendee's phone during in-person meetings, in English or Spanish, and produces a shareable transcript + summary when the meeting ends. The host runs a Node server on their laptop; attendees scan a QR code on their phone and read along — no app install, no account, no cellular data needed.
+**Live Captions** is a web app that puts live closed captions on every attendee's phone during in-person meetings, in English or Spanish, and produces a shareable transcript + summary when the meeting ends. Attendees scan a QR code on their phone and read along — no app install, no account, no cellular data needed.
 
 **Primary intended use:** **Rexburg West Stake** LDS Stake Conference (~300–500 attendees). Goals: (a) read-along captions during the meeting (or just glance when you miss a word), (b) full notes from each speaker to share/take home after. Translation to Spanish is a secondary feature.
+
+## Live URLs
+
+- **Production (Render free tier):** https://live-captions-w8x0.onrender.com — auto-deploys from `main` on every push.
+- **GitHub repo:** https://github.com/trevorperkes-HighC/live-captions (public).
+- **Local LAN mode:** `npm start` in `live-captions/` — for chapel demos without internet.
 
 ---
 
@@ -51,9 +57,10 @@ These were debated and decided across the conversation. Don't re-litigate withou
 
 ### ⏳ Pending
 
-- **Microphone source** (operational, **critical for chapel use**, not yet discussed in depth). A laptop's built-in mic can't pick up a speaker at the pulpit 30 ft away. User needs to confirm with stake sound operator that they can tap the chapel PA's "record out" jack via a USB audio interface (Behringer UCA222 ~$20 or similar) so the speaker's pulpit mic feeds the laptop as its audio source. Without this, captions are garbage regardless of network setup.
-- **Chapel WiFi test** (operational, not code). User needs to bring laptop + 2 phones to the stake center on a normal Sunday and verify (a) phones can reach laptop over chapel WiFi (no AP isolation), (b) the network handles ~500 simultaneous clients.
-- **Step 9 — Production API stubs.** `server/stt/deepgram.js`, `server/translate/google.js`, `server/summary/llm.js`. The directories exist (`server/translate/`, `server/summary/`), but only the demo-mode files do. **Deferred** — user is staying on free demo APIs for the chapel test, no rush.
+- **Microphone source** (operational, **critical for chapel use**). A laptop's built-in mic can't pick up a speaker at the pulpit 30 ft away. User needs to confirm with stake sound operator that they can tap the chapel PA's "record out" jack via a USB audio interface (~$20) so the speaker's pulpit mic feeds the laptop as its audio source.
+- **Chapel WiFi test** (operational, not code). Bring laptop + 2 phones to stake center on a normal Sunday and verify (a) phones can reach laptop over chapel WiFi (no AP isolation), (b) the network handles ~500 simultaneous clients.
+- **Revoke the temporary GitHub PAT** `live-captions-deploy` at https://github.com/settings/tokens?type=beta — was used once for the initial push (osxkeychain conflict workaround); Render's GitHub App auth handles all future deploys, so this PAT is no longer needed. Optional cleanup; token auto-expires Aug 16, 2026 either way.
+- **Step 9 — Production API stubs.** `server/stt/deepgram.js`, `server/translate/google.js`, `server/summary/llm.js`. **Deferred** — free APIs cover the first run.
 
 ### Decisions made but not yet acted on
 
@@ -152,3 +159,8 @@ Append a line each time something material lands.
 - **2026-05-18** — `SESSION_NOTES.md` created. Memory rule added: update this file on every completed task.
 - **2026-05-18** — Surfaced the **mic-source question** as a critical operational pending item — must be solved (PA tap via USB audio interface) before any real chapel use, otherwise captions are garbage.
 - **2026-05-18** — Built three artifacts for the stake-president conversation: (a) **mic level meter** on host page so user can verify audio before pressing Start, (b) **`/handout/:roomId`** printable "How to Join" page per room (linked from host), (c) **`/pitch`** multi-page sales sheet with inline device-frame mockups, bandwidth-impact chart, privacy/cost/test-plan sections, and approval ask.
+- **2026-05-18** — Exported `Live-Captions-Proposal.pdf` and `Live-Captions-Handout-Sample.pdf` to `~/Downloads/` via headless Chrome for offline sharing with the Stake President.
+- **2026-05-18** — **Cloud-ready.** Added `PUBLIC_URL` / `RENDER_EXTERNAL_URL` support so the QR codes encode the public URL when deployed. Server logs "mode: CLOUD" vs "mode: LAN" on boot. Created `render.yaml` blueprint, `.env.example`, and `DEPLOY.md` walkthrough. Initialized git repo (branch `main`, initial commit `da905b4`).
+- **2026-05-20** — **Deployed.** Public URL live at https://live-captions-w8x0.onrender.com (Render free tier, Oregon region, Blueprint-managed from `render.yaml`). Auto-redeploys on every push to `main`. Push to GitHub required a custom credential-helper workaround because Xcode's bundled git ships with `osxkeychain` as a system-level helper that intercepted credentials before our URL-embedded token could be used — wrote a one-shot helper to `/tmp/lc-git-helper.sh` that returned the PAT directly, bypassing keychain. Post-deploy smoke check: healthz OK, room creation in CLOUD mode (joinUrl uses public URL), QR PNG correct, all 5 routes (host/join/notes/handout/pitch) HTTP 200, Socket.io client served.
+- **2026-05-20** — **First real end-to-end test passed** (English + Spanish) on the deployed Render instance. Issue surfaced: the audience meeting-ended card only had a "View notes & transcript" link — no direct download. **Fixed:** audience meeting-ended UI now includes (a) a prominent "Download notes (.txt)" button that fires a client-side blob download in the user's selected language with no navigation required, (b) an inline summary preview right on the audience screen so attendees see useful content immediately, (c) a secondary "View full transcript" link to the notes page, (d) language toggle now re-renders the inline summary after meeting end. Commit `5199672`, deployed and verified live.
+- **2026-05-20** — **Long-term deploy workflow set up.** User authorized future sessions to push fixes/updates on their behalf. PAT stored at `~/.config/live-captions/deploy-token` (chmod 600), helper script at `~/.config/live-captions/git-helper.sh`. New `reference_deploy_workflow.md` memory documents the bypass for the osxkeychain conflict. Standard push from now on: `git -c credential.helper= -c credential.helper=$HOME/.config/live-captions/git-helper.sh push`. PAT expires 2026-08-16; rotation is just overwriting the token file.
