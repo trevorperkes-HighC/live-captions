@@ -110,15 +110,15 @@ app.post('/api/rooms', (_req, res) => {
   res.status(201).json(privateRoomShape(room));
 });
 
-app.get('/api/rooms/:roomId', (req, res) => {
-  const room = rooms.getRoom(req.params.roomId);
+app.get('/api/rooms/:roomId', async (req, res) => {
+  const room = await rooms.getRoomAsync(req.params.roomId);
   if (!room) return res.status(404).json({ error: 'room_not_found' });
   res.json(publicRoomShape(room));
 });
 
 // End a meeting: drain in-flight translations, run summary, broadcast meeting_ended.
 app.post('/api/rooms/:roomId/end', async (req, res) => {
-  const room = rooms.getRoom(req.params.roomId);
+  const room = await rooms.getRoomAsync(req.params.roomId);
   if (!room) return res.status(404).json({ error: 'room_not_found' });
   if (room.endedAt) {
     // Idempotent — return existing notes URL if already ended.
@@ -158,8 +158,8 @@ app.post('/api/rooms/:roomId/end', async (req, res) => {
 // languages. Available before the meeting ends too, with `endedAt: null` so the
 // client knows the meeting is still live.
 // Pass `?host=<hostToken>` to also receive the attendee stats report (host-only).
-app.get('/api/rooms/:roomId/notes', (req, res) => {
-  const room = rooms.getRoom(req.params.roomId);
+app.get('/api/rooms/:roomId/notes', async (req, res) => {
+  const room = await rooms.getRoomAsync(req.params.roomId);
   if (!room) return res.status(404).json({ error: 'room_not_found' });
 
   const isHost = req.query.host && req.query.host === room.hostToken;
@@ -187,7 +187,7 @@ app.get('/api/rooms/:roomId/notes', (req, res) => {
 // QR code for the join URL, as a PNG data URL. Server-side render means audience
 // phones never need to fetch a QR library from the internet.
 app.get('/api/rooms/:roomId/qr', async (req, res) => {
-  const room = rooms.getRoom(req.params.roomId);
+  const room = await rooms.getRoomAsync(req.params.roomId);
   if (!room) return res.status(404).json({ error: 'room_not_found' });
   const joinUrl = buildJoinUrl(room.id);
   try {
@@ -215,9 +215,11 @@ io.on('connection', (socket) => {
   console.log(`[socket] connected ${socket.id}`);
 
   // Host claims a room and starts streaming chunks. No auth — anyone with the
-  // host URL is treated as a host (prototype scope per spec).
-  socket.on('host_join', ({ roomId }) => {
-    if (!rooms.hasRoom(roomId)) {
+  // host URL is treated as a host (prototype scope per spec). After a server
+  // restart, the in-memory room is gone; getRoomAsync hydrates it from Supabase.
+  socket.on('host_join', async ({ roomId }) => {
+    const room = await rooms.getRoomAsync(roomId);
+    if (!room) {
       socket.emit('error_msg', { error: 'room_not_found', roomId });
       return;
     }
@@ -232,8 +234,8 @@ io.on('connection', (socket) => {
   // they join — no history backfill. If they missed the start, it's in the
   // post-meeting notes. The only event pushed on join is meeting_ended (if the
   // room is already over) so they land on the notes link.
-  socket.on('audience_join', ({ roomId, deviceId, lang }) => {
-    const room = rooms.getRoom(roomId);
+  socket.on('audience_join', async ({ roomId, deviceId, lang }) => {
+    const room = await rooms.getRoomAsync(roomId);
     if (!room) {
       socket.emit('error_msg', { error: 'room_not_found', roomId });
       return;
