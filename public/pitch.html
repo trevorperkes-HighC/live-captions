@@ -286,12 +286,19 @@
       <!-- ===== INTERNET BANDWIDTH ===== -->
       <section class="pitch-sheet">
         <span class="pitch-eyebrow">Why this won't affect the broadcast to other buildings</span>
-        <h2>The captions never touch the public internet during the meeting.</h2>
+        <h2>Two modes — both designed to leave the broadcast bandwidth alone.</h2>
 
         <p class="lead">
-          The app runs in <strong>LAN mode</strong>: attendee phones talk directly to the speaker's laptop
-          over the chapel's local Wi-Fi router. None of that traffic leaves the building. The same router
-          continues to push the broadcast video stream out at full bandwidth.
+          Live Captions can run in either of two configurations depending on the chapel's Wi-Fi setup.
+          The preferred mode keeps every caption inside the building. The backup mode uses a small slice
+          of the chapel's internet bandwidth — still well within typical capacity.
+        </p>
+
+        <h3 style="margin-top: 28px;">Mode 1 — Wi-Fi only (preferred)</h3>
+        <p>
+          The app runs on a laptop in the sound room. Attendee phones talk directly to that laptop
+          over the chapel's local Wi-Fi router. <strong>None of that traffic leaves the building.</strong>
+          The chapel's outgoing broadcast continues at full bandwidth, untouched.
         </p>
 
         <div class="bandwidth-compare">
@@ -306,16 +313,43 @@
             <span class="bw-value">≈ 0.2 Mbps</span>
           </div>
           <div class="bw-row">
-            <span class="bw-label">Captions from speaker's laptop to all 500 attendee phones <em>(stays on chapel Wi-Fi)</em></span>
+            <span class="bw-label">Captions to all attendee phones <em>(stays on chapel Wi-Fi)</em></span>
             <div class="bw-meter"><div class="bw-fill bw-fill-zero"></div></div>
             <span class="bw-value">0 Mbps of internet</span>
           </div>
         </div>
 
+        <h3 style="margin-top: 36px;">Mode 2 — Cloud (backup, if Wi-Fi security blocks direct device-to-device traffic)</h3>
+        <p>
+          Some chapel Wi-Fi networks have a security setting (sometimes called "AP isolation") that prevents
+          attendee phones from talking directly to the laptop. If that's the case at our stake center, the
+          app falls back to a small cloud server. Captions briefly travel out the chapel's internet and back —
+          still a small fraction of the broadcast's outbound bandwidth.
+        </p>
+
+        <div class="bandwidth-compare">
+          <div class="bw-row">
+            <span class="bw-label">Cloud captions to <strong>100</strong> attendees</span>
+            <div class="bw-meter"><div class="bw-fill bw-fill-tiny" style="width: 12%"></div></div>
+            <span class="bw-value">≈ 0.8 Mbps</span>
+          </div>
+          <div class="bw-row">
+            <span class="bw-label">Cloud captions to <strong>250</strong> attendees</span>
+            <div class="bw-meter"><div class="bw-fill bw-fill-tiny" style="width: 28%"></div></div>
+            <span class="bw-value">≈ 2 Mbps</span>
+          </div>
+          <div class="bw-row">
+            <span class="bw-label">Cloud captions to <strong>500</strong> attendees</span>
+            <div class="bw-meter"><div class="bw-fill bw-fill-tiny" style="width: 55%"></div></div>
+            <span class="bw-value">≈ 4 Mbps</span>
+          </div>
+        </div>
+
         <p class="bandwidth-note">
-          In plain terms: the speaker's laptop uses about <strong>one-twentieth of one percent</strong>
-          of what the broadcast already uses. The 500 attendee phones use <strong>none of the building's
-          internet</strong> at all — their captions travel only as far as the chapel router.
+          In Mode 2 — even at full attendance — captions use roughly the same bandwidth as <strong>one
+          extra HD video viewer</strong>. Most stake-center internet connections handle 50–100+ Mbps total,
+          so the broadcast to other buildings keeps plenty of headroom either way. Which mode we use is
+          decided by a quick pre-conference Wi-Fi test, not changed mid-meeting.
         </p>
       </section>
 
@@ -363,7 +397,7 @@
             <h3>One Sunday of testing.</h3>
             <ul class="check-list">
               <li><strong>Audio</strong> — confirm with the chapel sound operator that the PA's "record out" jack is available and that we can connect a small USB audio interface to it.</li>
-              <li><strong>Wi-Fi</strong> — bring the laptop and two phones to the chapel on a normal Sunday; verify the phones can connect to the laptop over chapel Wi-Fi (the only common failure mode is a security setting called "AP isolation" that's easy to disable if found).</li>
+              <li><strong>Wi-Fi mode check</strong> — bring the laptop and two phones to the chapel on a normal Sunday; verify the phones can talk directly to the laptop over chapel Wi-Fi. If they can, we run in Mode 1 (zero internet impact). If a security setting blocks direct connections, we run in Mode 2 (small bandwidth use, still works).</li>
               <li><strong>Capacity</strong> — confirm the chapel Wi-Fi has been used for 200+ simultaneous devices at past events.</li>
               <li><strong>Practice</strong> — run the app once during a normal-sized meeting (sacrament, ward conference, etc.) to validate everything end-to-end.</li>
             </ul>
