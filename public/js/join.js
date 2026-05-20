@@ -65,14 +65,22 @@
     }
   }
 
+  // When the meeting has ended we hold the notes payload here so language
+  // toggles can re-render the inline summary without re-fetching.
+  let endedNotesData = null;
+
   for (const btn of langBtns) {
     btn.addEventListener('click', () => {
       if (btn.dataset.lang === displayLang) return;
       displayLang = btn.dataset.lang;
       localStorage.setItem('captionLang', displayLang);
       updateToggleUI();
-      renderFinals();
-      interimEl.textContent = lastInterimChunk ? pickInterim(lastInterimChunk) : '';
+      if (endedNotesData) {
+        renderEndedSummary(endedNotesData);
+      } else {
+        renderFinals();
+        interimEl.textContent = lastInterimChunk ? pickInterim(lastInterimChunk) : '';
+      }
       // Tell the server so the host's stats report reflects the new choice.
       if (currentSocket && currentSocket.connected) {
         currentSocket.emit('audience_lang', { lang: displayLang });
@@ -80,6 +88,57 @@
     });
   }
   updateToggleUI();
+
+  function renderEndedSummary(data) {
+    const summaryEl = document.getElementById('ended-summary');
+    if (!summaryEl) return;
+    const summary = (data.summaries && data.summaries[displayLang]) || '';
+    if (summary) {
+      summaryEl.textContent = summary;
+      summaryEl.classList.remove('muted');
+    } else {
+      summaryEl.textContent = displayLang === 'es'
+        ? 'Resumen no disponible en este idioma. Toca Descargar para obtener la transcripción completa.'
+        : 'Summary not available in this language. Tap Download for the full transcript.';
+      summaryEl.classList.add('muted');
+    }
+  }
+
+  function downloadNotesFile(data) {
+    const code = data.code || roomId;
+    const stamp = data.endedAt
+      ? new Date(data.endedAt).toISOString().slice(0, 16).replace(/[T:]/g, '-')
+      : 'meeting';
+    const filename = `${code}-${stamp}-${displayLang}.txt`;
+    const langLabel = displayLang === 'es' ? 'Español' : 'English';
+    const dateLine = data.endedAt ? `Meeting ended: ${new Date(data.endedAt).toLocaleString()}` : '';
+    const body =
+`Live Captions — ${code}
+${langLabel}
+${dateLine}
+
+================================================================
+SUMMARY
+================================================================
+
+${(data.summaries && data.summaries[displayLang]) || '(no summary available in this language)'}
+
+================================================================
+FULL TRANSCRIPT
+================================================================
+
+${(data.transcripts && data.transcripts[displayLang]) || '(no transcript available in this language)'}
+`;
+    const blob = new Blob([body], { type: 'text/plain;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+  }
 
   // ----- 2. Validate the room exists -----
   let room;
@@ -170,25 +229,57 @@
     showError(`Server: ${msg.error}`);
   });
 
-  socket.on('meeting_ended', ({ notesUrl }) => {
+  socket.on('meeting_ended', async ({ notesUrl }) => {
     setStatus('disconnected', 'Meeting ended');
     interimEl.textContent = '';
-    // Replace the captions card with a clear "Meeting ended" surface containing
-    // a primary action: view & download the notes everyone gets.
-    captionsEl.innerHTML = '';
     captionsEl.classList.add('captions-ended');
-    const wrap = document.createElement('div');
-    wrap.className = 'ended-card';
-    wrap.innerHTML = `
-      <svg width="44" height="44" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-        <path d="M9 11l3 3L22 4"/>
-        <path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/>
-      </svg>
-      <h2 class="ended-title">Meeting ended</h2>
-      <p class="ended-sub">The notes and full transcript are ready.</p>
-      <a class="primary big ended-cta" href="${notesUrl}">View notes &amp; transcript</a>
+    captionsEl.innerHTML = `
+      <div class="ended-card">
+        <svg width="44" height="44" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <path d="M9 11l3 3L22 4"/>
+          <path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/>
+        </svg>
+        <h2 class="ended-title">Meeting ended</h2>
+        <p class="ended-sub">Save the notes to keep them — tap the button below.</p>
+
+        <div class="ended-actions">
+          <button id="ended-download" class="primary big ended-cta" disabled>Loading notes…</button>
+          <a class="ghost ended-link" href="${notesUrl}">View full transcript →</a>
+        </div>
+
+        <div class="ended-preview">
+          <p class="ended-preview-label">Summary preview</p>
+          <p id="ended-summary" class="ended-summary muted">Loading…</p>
+        </div>
+      </div>
     `;
-    captionsEl.appendChild(wrap);
+
+    // Fetch the notes payload so we can render a preview AND have the data
+    // ready when the user taps Download (no extra round-trip).
+    try {
+      const res = await fetch(`/api/rooms/${encodeURIComponent(roomId)}/notes`);
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const data = await res.json();
+      endedNotesData = data;
+      renderEndedSummary(data);
+      const btn = document.getElementById('ended-download');
+      if (btn) {
+        btn.disabled = false;
+        btn.textContent = 'Download notes (.txt)';
+        btn.addEventListener('click', () => {
+          if (!endedNotesData) return;
+          downloadNotesFile(endedNotesData);
+          btn.textContent = 'Downloaded ✓';
+          setTimeout(() => { btn.textContent = 'Download again'; }, 1500);
+        });
+      }
+    } catch (err) {
+      console.error('notes fetch failed', err);
+      const summaryEl = document.getElementById('ended-summary');
+      if (summaryEl) summaryEl.textContent = 'Notes could not be loaded — try the link above.';
+      const btn = document.getElementById('ended-download');
+      if (btn) btn.textContent = 'Unavailable';
+    }
   });
 
   socket.on('caption', (chunk) => {
